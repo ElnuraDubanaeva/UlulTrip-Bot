@@ -1,6 +1,7 @@
 from aiogram import types, Dispatcher
 from config import admin
 from database.bot_db import get_qr_code, get_category, get_guide
+from config import bot
 
 
 async def qr_code_echo(message: types.Message):
@@ -26,10 +27,15 @@ async def qr_code_echo(message: types.Message):
 
 async def start_handler(message: types.Message):
     if message.from_user.id not in admin:
-        await message.answer(
-            f"Здравствуйте {message.from_user.first_name}🤗!\n Добро пожаловать в наш бот!"
-            f" Я бот помошник UlulTrip. Чтобы забронировать тур отправь мне код"
-        )
+        if message.text == '/start':
+            await message.answer(
+                f"Здравствуйте {message.from_user.first_name}🤗!\n Добро пожаловать в наш бот!"
+                f" Я бот помошник UlulTrip. Чтобы забронировать тур отправь мне код"
+            )
+        else:
+            data = message.text
+            print(data)
+            await bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text='/start')
     else:
         await message.answer(
             "/admin"
