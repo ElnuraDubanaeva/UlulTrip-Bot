@@ -7,6 +7,15 @@ submit_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True
 cancel_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
     KeyboardButton("CANCEL")
 )
+share_number = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
+    KeyboardButton("Share number", request_contact=True)
+)
+payment_markup = ReplyKeyboardMarkup(
+    resize_keyboard=True, one_time_keyboard=True, row_width=2
+).add(
+    KeyboardButton("MBank"),
+    KeyboardButton("Optima"),
+)
 quantity_markup = ReplyKeyboardMarkup(
     resize_keyboard=True, one_time_keyboard=True, row_width=2
 ).add(

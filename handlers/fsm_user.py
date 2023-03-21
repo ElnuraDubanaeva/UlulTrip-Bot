@@ -2,11 +2,24 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from database.bot_db import get_qr_code, get_category, get_guide, insert_sql, get_qr_code_tour, get_username_user
+from database.bot_db import (
+    get_qr_code,
+    insert_sql,
+    get_qr_code_tour,
+    get_username_user,
+    get_username,
+    get_tour_title,
+    get_tour_price,
+    get_actual_limit,
+    get_quantity_limit,
+    update_actual_limit,
+)
 from keyboards.client_kb import (
     submit_markup,
     cancel_markup,
-    quantity_markup
+    quantity_markup,
+    share_number,
+    payment_markup,
 )
 
 
@@ -15,6 +28,8 @@ class FSMAdmin(StatesGroup):
     username = State()
     quantity = State()
     number = State()
+    way_of_payment = State()
+    payment = State()
     submit = State()
 
 
@@ -27,27 +42,23 @@ async def load_qr_code(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["qr_code"] = await get_qr_code_tour(message.text)
     tour = await get_qr_code(message.text)
-    category = await get_category(tour[13])
-    guide = await get_guide(tour[14])
-    site = f"<a href='http://164.92.190.147:8880/home/tour/{tour[4]}'>Tour</a>"
     await message.answer(
-        f"\nТур: <i>{tour[1]}</i>"
-        f"\nЦена: <i>{tour[3]}</i>"
-        f"\nДата выезда: <i>{tour[6]}</i>"
-        f"\nДата приезда: <i>{tour[7]}</i>"
-        f"\nЛимит: <i>{tour[8]}</i>"
-        f"\nСколько: <i>{tour[9]}</i>"
-        f"\nДлительность: <i>{tour[11]} дней</i>"
-        f"\nСложность: <i>{tour[12]}</i>"
-        f"\nГид: <i>{guide[0]} {guide[1]}</i>"
-        f"\nКатегория: <i>{category[0]}</i>"
-        f"\nSite: <i>{site}</i>",
-        parse_mode="HTML",
+        (
+            f"\nТур: {tour[1]}"
+            f"\nЦена: {tour[3]}"
+            f"\nДата выезда: {tour[6]}"
+            f"\nДата приезда: {tour[7]}"
+            f"\nКоличество мест: {tour[8]}"
+            f"\nСколько человек забронировал: {tour[9]}"
+            f"\nДлительность: {tour[11]} дней"
+        )
     )
     await FSMAdmin.next()
     await message.answer(
-        "Если хотите этот тур забронировать то тогда \nВведите ваш username (Которого ввели при регистраций")
-    await message.answer("Если не этот тур то тогда нажмите на Cancel", reply_markup=cancel_markup)
+        "Введите ваш username (Которого ввели при регистраций)"
+        "\nЕсли хотите забронировать не этот тур то тогда нажмите на Cancel",
+        reply_markup=cancel_markup,
+    )
 
 
 async def load_username(message: types.Message, state: FSMContext):
@@ -55,43 +66,77 @@ async def load_username(message: types.Message, state: FSMContext):
         data["username"] = await get_username_user(message.text)
     await FSMAdmin.next()
     await message.answer(
-        "Сколько мест хотите забронировать", reply_markup=quantity_markup
+        "Сколько мест хотите забронировать?", reply_markup=quantity_markup
     )
 
 
 async def load_quantity(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data["quantity"] = message.text
-    await FSMAdmin.next()
-    await message.answer("Введите номер телефона:", reply_markup=cancel_markup)
+        tour = data["qr_code"]
+        actual_limit = await get_actual_limit(tour)
+        quantity_limit = await get_quantity_limit(tour)
+        if actual_limit + int(message.text) <= quantity_limit:
+            data["quantity"] = message.text
+            await FSMAdmin.next()
+            await message.answer("Введите номер телефона:", reply_markup=share_number)
+        else:
+            if quantity_limit - actual_limit != 0:
+                await message.answer(
+                    f"К сожелению осталось только {quantity_limit - actual_limit} мест",
+                    reply_markup=quantity_markup,
+                )
+            await message.answer(
+                f"К сожелению мест не осталось. Чтобы забронировать другой тур  нажмите на CANCEL",
+                reply_markup=cancel_markup,
+            )
 
 
 async def load_number(message: types.Message, state: FSMContext):
-    if (
-            int(message.text)
-            and len(str(message.text)) == 10
-            and str(message.text).startswith("0")
-    ):
-        async with state.proxy() as data:
-            data["number"] = f"+996{message.text}"
-        await message.answer(
-            f'\nUsername: {data["username"]}'
-            f'\nНомер: {data["number"]} '
-            f'\nКоличество: {data["quantity"]}'
-            f'\nКод Тура: {data["qr_code"]}'
-        )
+    async with state.proxy() as data:
+        data["number"] = message.contact.phone_number
         await FSMAdmin.next()
-        await message.answer("Все данные правильны?", reply_markup=submit_markup)
+        await message.answer("Выберите способ оплаты:", reply_markup=payment_markup)
 
-    else:
-        await message.answer(
-            "Введите номер: например 0777123456", reply_markup=cancel_markup
-        )
+
+async def load_way_of_payment(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        price = await get_tour_price(str(data["qr_code"][0]))
+        summ = int(data["quantity"]) * int(price)
+    if message.text == "MBank":
+        await message.answer(f"Номер Мбанк: 0778116934 \nСумма к оплате: {summ}")
+    if message.text == "Optima":
+        await message.answer(f"Номер Optima: 0778116934 \nСумма к оплате: {summ}")
+    async with state.proxy() as data:
+        data["way_of_payment"] = message.text
+        await FSMAdmin.next()
+        await message.answer("Отправьте скриншот чека чтобы завершить бронь")
+
+
+async def load_payment(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["payment"] = message.photo[0].file_id
+    username = await get_username(str(data["username"][0]))
+    tour = await get_tour_title(str(data["qr_code"][0]))
+    await message.answer_photo(
+        photo=data["payment"],
+        caption=f"\nUsername: {username[0]}"
+                f'\nНомер: {data["number"]} '
+                f'\nКоличество: {data["quantity"]}'
+                f"\nТур: {tour[0]}",
+    )
+    await FSMAdmin.next()
+    await message.answer("Все данные правильны?", reply_markup=submit_markup)
 
 
 async def submit(message: types.Message, state: FSMContext):
     if message.text == "ДА":
         await insert_sql(state)
+        async with state.proxy() as data:
+            tour = data["qr_code"]
+            quantity = data["quantity"]
+            actual_limit = await get_actual_limit(tour)
+            summ = int(quantity) + actual_limit
+            await update_actual_limit(tour_id=tour, quantity=summ)
         await state.finish()
         await message.answer(
             "Бронь успешно завершена"
@@ -111,7 +156,9 @@ async def submit(message: types.Message, state: FSMContext):
 async def cancel_reg(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is not None:
-        await message.answer("Вы отменили бронь! Чтобы начать заново нажмите на /arrange")
+        await message.answer(
+            "Вы отменили бронь! Чтобы начать заново нажмите на /arrange"
+        )
         await state.finish()
 
 
@@ -123,6 +170,12 @@ def register_handlers_fsm_student(dp: Dispatcher):
     dp.register_message_handler(fsm_start, commands=["arrange"])
     dp.register_message_handler(load_qr_code, state=FSMAdmin.qr_code)
     dp.register_message_handler(load_username, state=FSMAdmin.username)
-    dp.register_message_handler(load_number, state=FSMAdmin.number)
+    dp.register_message_handler(
+        load_number, state=FSMAdmin.number, content_types=types.ContentType.CONTACT
+    )
     dp.register_message_handler(load_quantity, state=FSMAdmin.quantity)
+    dp.register_message_handler(load_way_of_payment, state=FSMAdmin.way_of_payment)
+    dp.register_message_handler(
+        load_payment, state=FSMAdmin.payment, content_types=["photo"]
+    )
     dp.register_message_handler(submit, state=FSMAdmin.submit)
