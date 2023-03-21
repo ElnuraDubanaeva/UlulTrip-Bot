@@ -3,7 +3,9 @@ from aiogram.utils import executor
 import logging
 from config import dp, bot
 from database.bot_db import connect_postgresql
-from handlers import client, fsm_user, fsm_app
+from handlers import client, fsm_user
+
+
 
 
 async def on_startup(_):
