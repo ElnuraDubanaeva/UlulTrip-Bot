@@ -2,6 +2,8 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import StatesGroup, State
+
+from config import bot
 from database.bot_db import (
     get_qr_code,
     insert_sql,
@@ -114,11 +116,14 @@ async def load_way_of_payment(message: types.Message, state: FSMContext):
 
 async def load_payment(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data["payment"] = message.photo[0].file_id
+        photo_id = message.photo[0].file_id
+        file = await bot.get_file(photo_id)
+        file_path = file.file_path
+        data['payment'] = file_path
     username = await get_username(str(data["username"][0]))
     tour = await get_tour_title(str(data["qr_code"][0]))
     await message.answer_photo(
-        photo=data["payment"],
+        photo=photo_id,
         caption=f"\nUsername: {username[0]}"
                 f'\nНомер: {data["number"]} '
                 f'\nКоличество: {data["quantity"]}'
