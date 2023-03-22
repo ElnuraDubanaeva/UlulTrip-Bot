@@ -87,10 +87,11 @@ async def load_quantity(message: types.Message, state: FSMContext):
                     f"К сожелению осталось только {quantity_limit - actual_limit} мест",
                     reply_markup=quantity_markup,
                 )
-            await message.answer(
-                f"К сожелению мест не осталось. Чтобы забронировать другой тур  нажмите на CANCEL",
-                reply_markup=cancel_markup,
-            )
+            else:
+                await message.answer(
+                    f"К сожелению мест не осталось. Чтобы забронировать другой тур  нажмите на CANCEL",
+                    reply_markup=cancel_markup,
+                )
 
 
 async def load_number(message: types.Message, state: FSMContext):
