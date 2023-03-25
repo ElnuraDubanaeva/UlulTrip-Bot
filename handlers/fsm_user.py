@@ -122,7 +122,7 @@ async def load_way_of_payment(message: types.Message, state: FSMContext):
     if message.text == "MBank":
         await message.answer(f"Номер Мбанк: 0778116934 \nСумма к оплате: {summ}")
     if message.text == "Optima":
-        await message.answer(f"Номер Optima: 0778116934 \nСумма к оплате: {summ}")
+        await message.answer(f"Номер Optima: 4169 5853 4074 3227 \nСумма к оплате: {summ}")
     async with state.proxy() as data:
         data["way_of_payment"] = message.text
         await FSMAdmin.next()
@@ -131,21 +131,24 @@ async def load_way_of_payment(message: types.Message, state: FSMContext):
 
 async def load_payment(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        photo_id = message.photo[0].file_id
-        file = await bot.get_file(photo_id)
-        file_path = file.file_path
-        data["payment"] = file_path
-    username = await get_username(str(data["username"][0]))
-    tour = await get_tour_title(str(data["qr_code"][0]))
-    await message.answer_photo(
-        photo=photo_id,
-        caption=f"\nUsername: {username[0]}"
-        f'\nНомер: {data["number"]} '
-        f'\nКоличество: {data["quantity"]}'
-        f"\nТур: {tour[0]}",
-    )
-    await FSMAdmin.next()
-    await message.answer("Все данные правильны?", reply_markup=submit_markup)
+        if message.content_type == "photo":
+            photo_id = message.photo[0].file_id
+            file = await bot.get_file(photo_id)
+            file_path = file.file_path
+            data["payment"] = file_path
+            username = await get_username(str(data["username"][0]))
+            tour = await get_tour_title(str(data["qr_code"][0]))
+            await message.answer_photo(
+                photo=photo_id,
+                caption=f"\nUsername: {username[0]}"
+                        f'\nНомер: {data["number"]} '
+                        f'\nКоличество: {data["quantity"]}'
+                        f"\nТур: {tour[0]}",
+            )
+            await FSMAdmin.next()
+            await message.answer("Все данные правильны?", reply_markup=submit_markup)
+        else:
+            await message.answer("Отправьте скриншот чека")
 
 
 async def submit(message: types.Message, state: FSMContext):
@@ -164,7 +167,7 @@ async def submit(message: types.Message, state: FSMContext):
             "\n<b> Хорошего дня!</b>🤗 ",
             parse_mode="HTML",
         )
-    elif message.text == ["НЕТ", "CANCEL"]:
+    elif message.text in ["НЕТ", "CANCEL"]:
         await message.answer(
             "Отмена! Чтобы заново пройти регистрацию нажмите на команду /reg"
         )
@@ -185,7 +188,7 @@ async def cancel_reg(message: types.Message, state: FSMContext):
 def register_handlers_fsm_student(dp: Dispatcher):
     dp.register_message_handler(cancel_reg, state="*", commands=["CANCEL"])
     dp.register_message_handler(
-        cancel_reg, Text(equals=["CANCEL", "Отмена"], ignore_case=True), state=["*"]
+        cancel_reg, Text(equals=["CANCEL", "Отмена", "НЕТ"], ignore_case=True), state=["*"]
     )
     dp.register_message_handler(fsm_start, commands=["arrange"])
     dp.register_message_handler(load_qr_code, state=FSMAdmin.qr_code)
@@ -196,6 +199,6 @@ def register_handlers_fsm_student(dp: Dispatcher):
     dp.register_message_handler(load_quantity, state=FSMAdmin.quantity)
     dp.register_message_handler(load_way_of_payment, state=FSMAdmin.way_of_payment)
     dp.register_message_handler(
-        load_payment, state=FSMAdmin.payment, content_types=["photo"]
+        load_payment, state=FSMAdmin.payment, content_types=["photo","text"]
     )
     dp.register_message_handler(submit, state=FSMAdmin.submit)

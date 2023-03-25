@@ -17,7 +17,7 @@ payment_markup = ReplyKeyboardMarkup(
     KeyboardButton("Optima"),
 )
 quantity_markup = ReplyKeyboardMarkup(
-    resize_keyboard=True, one_time_keyboard=True, row_width=2
+    resize_keyboard=True, one_time_keyboard=True, row_width=1
 ).add(
     KeyboardButton("1"),
     KeyboardButton("2"),
@@ -29,4 +29,7 @@ quantity_markup = ReplyKeyboardMarkup(
     KeyboardButton("8"),
     KeyboardButton("9"),
     KeyboardButton("10"),
+)
+arrange_markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2).add(
+    KeyboardButton("/arrange")
 )
