@@ -43,7 +43,7 @@ async def fsm_start(message: types.Message):
 async def load_qr_code(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         tour = await get_qr_code_tour(message.text)
-        if tour is None:
+        if tour is not None:
             data["qr_code"] = tour
             tour = await get_qr_code(message.text)
             await message.answer(
@@ -74,7 +74,7 @@ async def load_qr_code(message: types.Message, state: FSMContext):
 async def load_username(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         username = await get_username_user(message.text)
-        if username is None:
+        if username is not None:
             data["username"] = username
             await FSMAdmin.next()
             await message.answer(
