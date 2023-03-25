@@ -6,8 +6,6 @@ from database.bot_db import connect_postgresql
 from handlers import client, fsm_user
 
 
-
-
 async def on_startup(_):
     connect_postgresql()
 

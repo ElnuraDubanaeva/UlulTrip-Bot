@@ -37,39 +37,54 @@ class FSMAdmin(StatesGroup):
 
 async def fsm_start(message: types.Message):
     await FSMAdmin.qr_code.set()
-    await message.answer("Введите код тура: ")
+    await message.answer("Введите код тура: ", reply_markup=cancel_markup)
 
 
 async def load_qr_code(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data["qr_code"] = await get_qr_code_tour(message.text)
-    tour = await get_qr_code(message.text)
-    await message.answer(
-        (
-            f"\nТур: {tour[1]}"
-            f"\nЦена: {tour[3]}"
-            f"\nДата выезда: {tour[6]}"
-            f"\nДата приезда: {tour[7]}"
-            f"\nКоличество мест: {tour[8]}"
-            f"\nСколько человек забронировал: {tour[9]}"
-            f"\nДлительность: {tour[11]} дней"
-        )
-    )
-    await FSMAdmin.next()
-    await message.answer(
-        "Введите ваш username (Которого ввели при регистраций)"
-        "\nЕсли хотите забронировать не этот тур то тогда нажмите на Cancel",
-        reply_markup=cancel_markup,
-    )
+        tour = await get_qr_code_tour(message.text)
+        if len(tour) > 1:
+            data["qr_code"] = tour
+            tour = await get_qr_code(message.text)
+            await message.answer(
+                (
+                    f"\nТур: {tour[1]}"
+                    f"\nЦена: {tour[3]}"
+                    f"\nДата выезда: {tour[6]}"
+                    f"\nДата приезда: {tour[7]}"
+                    f"\nКоличество мест: {tour[8]}"
+                    f"\nСколько человек забронировал: {tour[9]}"
+                    f"\nДлительность: {tour[11]} дней"
+                )
+            )
+            await FSMAdmin.next()
+            await message.answer(
+                "Введите ваш username (Которого ввели при регистраций)"
+                "\nЕсли хотите забронировать не этот тур то тогда нажмите на Cancel",
+                reply_markup=cancel_markup,
+            )
+
+        else:
+            await message.answer(
+                "Кажется вы отправили не правильный код тура. Повторно отправьте правильный код тура",
+                reply_markup=cancel_markup,
+            )
 
 
 async def load_username(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data["username"] = await get_username_user(message.text)
-    await FSMAdmin.next()
-    await message.answer(
-        "Сколько мест хотите забронировать?", reply_markup=quantity_markup
-    )
+        username = await get_username_user(message.text)
+        if len(username) > 1:
+            data["username"] = username
+            await FSMAdmin.next()
+            await message.answer(
+                "Сколько мест хотите забронировать?", reply_markup=quantity_markup
+            )
+        else:
+            await message.answer(
+                "Кажется вы отправили не правильный username. Повторно отправьте username которого ввели при регистраций",
+                reply_markup=cancel_markup,
+            )
 
 
 async def load_quantity(message: types.Message, state: FSMContext):
@@ -81,17 +96,16 @@ async def load_quantity(message: types.Message, state: FSMContext):
             data["quantity"] = message.text
             await FSMAdmin.next()
             await message.answer("Введите номер телефона:", reply_markup=share_number)
+        elif quantity_limit - actual_limit != 0:
+            await message.answer(
+                f"К сожелению осталось только {quantity_limit - actual_limit} мест",
+                reply_markup=quantity_markup,
+            )
         else:
-            if quantity_limit - actual_limit != 0:
-                await message.answer(
-                    f"К сожелению осталось только {quantity_limit - actual_limit} мест",
-                    reply_markup=quantity_markup,
-                )
-            else:
-                await message.answer(
-                    f"К сожелению мест не осталось. Чтобы забронировать другой тур  нажмите на CANCEL",
-                    reply_markup=cancel_markup,
-                )
+            await message.answer(
+                f"К сожелению мест не осталось. Чтобы забронировать другой тур  нажмите на CANCEL",
+                reply_markup=cancel_markup,
+            )
 
 
 async def load_number(message: types.Message, state: FSMContext):
@@ -120,15 +134,15 @@ async def load_payment(message: types.Message, state: FSMContext):
         photo_id = message.photo[0].file_id
         file = await bot.get_file(photo_id)
         file_path = file.file_path
-        data['payment'] = file_path
+        data["payment"] = file_path
     username = await get_username(str(data["username"][0]))
     tour = await get_tour_title(str(data["qr_code"][0]))
     await message.answer_photo(
         photo=photo_id,
         caption=f"\nUsername: {username[0]}"
-                f'\nНомер: {data["number"]} '
-                f'\nКоличество: {data["quantity"]}'
-                f"\nТур: {tour[0]}",
+        f'\nНомер: {data["number"]} '
+        f'\nКоличество: {data["quantity"]}'
+        f"\nТур: {tour[0]}",
     )
     await FSMAdmin.next()
     await message.answer("Все данные правильны?", reply_markup=submit_markup)
